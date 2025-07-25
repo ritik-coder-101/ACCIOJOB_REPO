@@ -17,7 +17,7 @@ const sessionSchema=new mongoose.Schema({
         type : Object,
         default:{}
     },
-    uiEditorStatus: {
+    uiEditorState: {
         type: Object,
         default:{}
     },

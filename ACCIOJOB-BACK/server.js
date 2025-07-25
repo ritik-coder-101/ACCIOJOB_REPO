@@ -4,6 +4,7 @@ const express=require('express');
 const cors=require('cors');
 const mongoose = require('mongoose');
 const authMiddleware=require('./middleware/authMiddleware');
+const aiRoutes=require('./routes/aiRoutes')
 const Auth=require('./routes/auth');
 const sessionRoutes=require('./routes/sessionRoutes')
 
@@ -27,6 +28,7 @@ connectDb();
 
 app.use('/api/auth', Auth);
 app.use('/api/sessions',sessionRoutes)
+app.use('/api',aiRoutes);
 
 app.use('/api/test/protected',authMiddleware , (req,res) => { 
     res.json({
@@ -37,6 +39,11 @@ app.use('/api/test/protected',authMiddleware , (req,res) => {
 
 app.get('/', (req, res) => {
     res.send('Component Generator Backend API is active!');
+});
+
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Something broke!');
 });
 
 app.listen(PORT, () => {

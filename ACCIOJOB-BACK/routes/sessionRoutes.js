@@ -15,7 +15,7 @@ router.post('/new',auth,async(req,res) => {
             userId:userId,
             chatHistory:[],
             generatedCode:{},
-            uiEditorStatus:{}
+            uiEditorState:{}
         });
 
         await newSession.save();
@@ -71,7 +71,7 @@ router.get('/:id',auth, async(req,res) => {
             id: session._id,
             chat_history: session.chatHistory,    // Using frontend-friendly names
             generated_code: session.generatedCode,
-            ui_editor_status: session.uiEditorStatus,
+            ui_editor_state: session.uiEditorState,
             created_at: session.createdAt,
             updated_at: session.updatedAt
         });
@@ -90,7 +90,7 @@ router.put('/:id/save',auth, async(req,res) => {
     const userId=req.user;
     const sessionId=req.params.id;
 
-    const {chat_history , generated_code , ui_editor_status } = req.body;
+    const {chat_history , generated_code , ui_editor_state } = req.body;
     try {
 
         if (!mongoose.Types.ObjectId.isValid(sessionId)) {
@@ -102,7 +102,7 @@ router.put('/:id/save',auth, async(req,res) => {
             {
                 chatHistory: chat_history,
                 generatedCode: generated_code, 
-                uiEditorStatus: ui_editor_status 
+                uiEditorState: ui_editor_state 
             },
             { new: true }
         );
