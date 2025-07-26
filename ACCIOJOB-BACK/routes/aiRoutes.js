@@ -31,9 +31,10 @@ router.post('/generate', auth, async (req, res) => {
 
         let generatedJsx = '';
         let generatedCss = '';
+        let generatedHtml = ''; 
         let aiTextResponse = text;
 
-        const codeBlockRegex = /```(jsx|tsx|javascript|js|css)\n([\s\S]*?)```/g;
+        const codeBlockRegex = /```(jsx|tsx|javascript|js|css|html)\n([\s\S]*?)```/g;
         let match;
         let codeSnippetsFound = [];
 
@@ -46,12 +47,14 @@ router.post('/generate', auth, async (req, res) => {
         if (codeSnippetsFound.length > 0) {
             const jsxSnippet = codeSnippetsFound.find(s => s.lang.includes('js'));
             const cssSnippet = codeSnippetsFound.find(s => s.lang === 'css');
+            const htmlSnippet = codeSnippetsFound.find(s => s.lang === 'html');
 
             if (jsxSnippet) generatedJsx = jsxSnippet.code;
             if (cssSnippet) generatedCss = cssSnippet.code;
+            if (htmlSnippet) generatedHtml = htmlSnippet.code;
 
             aiTextResponse = text.replace(codeBlockRegex, '').trim();
-            if (aiTextResponse.length === 0 && (generatedJsx || generatedCss)) {
+            if (aiTextResponse.length === 0 && (generatedJsx || generatedCss || generatedHtml)) { // <-- UPDATED: Check for generatedHtml too
                 aiTextResponse = "Here's the component code you requested:";
             } else if (aiTextResponse.length === 0) {
                 aiTextResponse = "I processed your request, but found no code or specific text to return.";
@@ -59,6 +62,7 @@ router.post('/generate', auth, async (req, res) => {
         } else {
             generatedJsx = `// No JSX generated for this prompt.`;
             generatedCss = `/* No CSS generated for this prompt. */`;
+            generatedHtml = ``; 
         }
 
         res.json({
@@ -66,6 +70,7 @@ router.post('/generate', auth, async (req, res) => {
             generatedCode: {
                 jsx: generatedJsx,
                 css: generatedCss,
+                html: generatedHtml,
             },
         });
 

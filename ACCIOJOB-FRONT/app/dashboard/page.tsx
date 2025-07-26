@@ -1,9 +1,10 @@
 // app/dashboard/page.tsx
 'use client'; // This directive marks this as a Client Component in Next.js
 
-import React, { useEffect, useState, useRef } from 'react'; // ADD useRef here
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext'; // Import the useAuth hook for auth state
 import { useRouter } from 'next/navigation'; // Import useRouter hook for redirects
+import LivePreviewModal from '../../components/LivePreviewModal'; // Import the LivePreviewModal component
 
 // Define an interface for the session data for type safety
 // This reflects the shape of the data returned by your backend's session API.
@@ -15,9 +16,9 @@ interface Session {
   chat_history?: { // Array of chat messages
     role: 'user' | 'ai'; // Role of the message sender
     content: string;     // The text content of the message
-    code_snippet?: { jsx: string; css: string }; // Optional code snippet for AI responses
+    code_snippet?: { jsx: string; css: string; html:string }; // Optional code snippet for AI responses
   }[];
-  generated_code?: { jsx: string; css: string }; // The full generated component code
+  generated_code?: { jsx: string; css: string;html:string }; // The full generated component code
   ui_editor_state?: any; // State for interactive UI editor (e.g., properties of selected elements)
 }
 
@@ -43,19 +44,25 @@ export default function DashboardPage() {
   // Ref for auto-scrolling to the end of the chat messages
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // States for modal control
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [codeToDisplayInModal, setCodeToDisplayInModal] = useState<{ jsx: string; css: string } | null>(null);
+
   // -------------------------------------------------------------------
   // ALL useEffect hooks MUST be declared here, unconditionally, before any conditional returns
   // -------------------------------------------------------------------
 
-  // Effect 1: Client-side route protection (uses useRouter, so needs to be in client component)
+  // Effect 1: Client-side route protection
+  // Redirects unauthenticated users to the login page.
   useEffect(() => {
     if (!authLoading && !user) {
       router.replace('/login');
     }
   }, [user, authLoading, router]);
 
-  // Effect 2: Fetch list of sessions when user/token changes
+  // Effect 2: Fetch list of sessions when user/token changes (i.e., on login/initial load)
   useEffect(() => {
+    // Only attempt to fetch sessions if a user is authenticated and a token is available.
     if (user && token) {
       const fetchSessions = async () => {
         setSessionsLoading(true);
@@ -79,8 +86,7 @@ export default function DashboardPage() {
 
           setSessions(data);
 
-          // If there are sessions and none is selected, load the most recent one automatically
-          // This part now executes AFTER selectedSession has potentially been updated by previous renders.
+          // Optional: If there are sessions and none is selected, load the most recent one automatically
           if (data.length > 0 && selectedSession === null) {
               await handleLoadSession(data[0].id);
           }
@@ -98,18 +104,17 @@ export default function DashboardPage() {
 
       fetchSessions();
     }
-  }, [user, token, logout]); // Removed selectedSession from dependencies to prevent potential loop,
-                             // as selectedSession is updated inside this effect's conditional branch.
+  }, [user, token, logout]); // Corrected dependencies: removed selectedSession from this effect
 
   // Effect 3: Auto-scroll to the bottom of the chat (runs when chat history length changes)
   useEffect(() => {
     if (chatEndRef.current) {
       // Use a small setTimeout to ensure DOM has updated before scrolling
       const timer = setTimeout(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'instant' });
-      }, 0); // A 0ms timeout pushes the scroll operation to the end of the current event loop
+        chatEndRef.current?.scrollIntoView({ behavior: 'instant' }); // Changed to 'instant' and 0ms timeout
+      }, 0);
 
-      return () => clearTimeout(timer); // Cleanup the timer on unmount/re-render
+      return () => clearTimeout(timer);
     }
   }, [selectedSession?.chat_history?.length, sessionDetailLoading]);
 
@@ -248,15 +253,27 @@ export default function DashboardPage() {
         };
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // --- ACTUAL AI BACKEND CALL ---
+      const aiRes = await fetch('http://localhost:5000/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': token,
+        },
+        body: JSON.stringify({ prompt: userMessage.content }),
+      });
+
+      const aiData = await aiRes.json();
+
+      if (!aiRes.ok) {
+        const aiErrorMessage = aiData.msg || 'AI response failed.';
+        throw new Error(aiErrorMessage);
+      }
 
       const finalAiResponse = {
         role: 'ai',
-        content: 'This is a simulated AI response. The actual AI will generate code here!',
-        code_snippet: {
-          jsx: `// Simulated JSX\n<div className="simulated-component">Hello from AI!</div>`,
-          css: `.simulated-component { color: purple; padding: 10px; }`,
-        },
+        content: aiData.aiText,
+        code_snippet: aiData.generatedCode,
       };
 
       setSelectedSession((prevSession) => {
@@ -270,15 +287,12 @@ export default function DashboardPage() {
         };
       });
 
-      // Clone chat_history and add new messages for saving (prevents stale closure issues)
-      // This is important because selectedSession.chat_history inside this closure might be outdated
-      // if previous setSelectedSession calls haven't fully re-rendered yet.
       const chatHistoryForSave = [...(selectedSession?.chat_history || []), userMessage, finalAiResponse];
 
       const sessionToSave = {
         chat_history: chatHistoryForSave,
         generated_code: finalAiResponse.code_snippet,
-        ui_editor_state: selectedSession.ui_editor_state,
+        ui_editor_state: selectedSession?.ui_editor_state || {},
       };
 
       const saveRes = await fetch(`http://localhost:5000/api/sessions/${currentSessionId}/save`, {
@@ -333,14 +347,13 @@ export default function DashboardPage() {
   }
 
   // --- DEBUGGING LOG (You can remove this after confirming display) ---
-  // This log shows the content of 'selectedSession' in your browser's console.
   console.log('Current selectedSession:', selectedSession);
   // --- END DEBUGGING LOG ---
 
   // -------------------------------------------------------------------
   // Main Dashboard UI for authenticated users (JSX return)
   // -------------------------------------------------------------------
-return (
+  return (
     <div className="flex h-screen bg-gray-50">
       {/* Left Panel: Sessions List & User Info */}
       <div className="w-1/4 p-4 bg-white border-r border-gray-200 shadow-md flex flex-col">
@@ -396,14 +409,13 @@ return (
           <p className="text-center text-lg mt-10 text-gray-700">Loading session details...</p>
         ) : selectedSession ? (
           // Display details if a session is selected
-          <div className="bg-white p-6 rounded shadow-md flex-grow border border-blue-200">
-            <h3 className="text-xl font-semibold mb-4 text-blue-800">Session ID: <span className="font-mono text-sm">{selectedSession.id}</span></h3>
+          <div className="bg-white p-6 rounded shadow-md flex-grow border border-blue-200 flex flex-col">
+            <p className="text-gray-700 mb-2">Session ID: <span className="font-mono text-sm">{selectedSession.id}</span></p>
 
             {/* Displaying actual loaded data - Chat Transcript only for now */}
-            <div className="mt-6 border p-4 bg-gray-50 rounded h-95% overflow-auto">
-
+            <div className="flex-grow overflow-hidden flex flex-col">
                 {/* Enhanced chat display container with scrolling */}
-                <div className="space-y-3 w-full overflow-y-auto max-h-130 pr-2">
+                <div className="space-y-3 w-full overflow-y-auto max-h-[calc(100vh-250px)] pr-2 bg-gray-200 rounded p-2">
                     {/* Check if chat_history exists and has items before mapping */}
                     {selectedSession.chat_history?.length > 0 ? (
                         selectedSession.chat_history.map((message: any, index: number) => (
@@ -423,32 +435,53 @@ return (
                                     } ${
                                         // Dynamic max-width for bubbles based on content type
                                         message.code_snippet
-                                            ? 'max-w-[calc(100%-2rem)]' // Tighter constraint for code
-                                            : 'max-w-[75%]'            // Standard for text
-                                    } overflow-x-hidden break-words flex-shrink-0`} // Essential for horizontal overflow
+                                            ? 'max-w-[calc(100%-2rem)]'
+                                            : 'max-w-[75%]'
+                                    } overflow-x-hidden break-words flex-shrink-0`}
                                 >
                                     <strong className="block capitalize mb-1">{message.role}:</strong>
                                     <p className="text-sm">{message.content}</p>
                                     {/* Display code snippet if available */}
                                     {message.code_snippet && (
-                                        <pre className="mt-2 p-2 bg-gray-700 text-white rounded text-xs overflow-x-auto whitespace-pre w-full box-border">
-                                            {/* Display JSX and CSS content directly with newlines */}
-                                            {message.code_snippet.jsx && (
-                                                <>
-                                                    <span className="font-bold text-blue-300">JSX:</span>
-                                                    {'\n'}
-                                                    <code>{message.code_snippet.jsx}</code>
-                                                    {'\n\n'}
-                                                </>
-                                            )}
-                                            {message.code_snippet.css && (
-                                                <>
-                                                    <span className="font-bold text-green-300">CSS:</span>
-                                                    {'\n'}
-                                                    <code>{message.code_snippet.css}</code>
-                                                </>
-                                            )}
-                                        </pre>
+                                        <> {/* Fragment is needed to group <pre> and <button> */}
+                                            <pre className="mt-2 p-2 bg-gray-700 text-white rounded text-xs overflow-x-auto whitespace-pre w-full box-border">
+                                                {/* Display JSX and CSS content directly with newlines */}
+                                                {message.code_snippet.jsx && (
+                                                    <>
+                                                        <span className="font-bold text-blue-300">JSX:</span>
+                                                        {'\n'}
+                                                        <code>{message.code_snippet.jsx}</code>
+                                                        {'\n\n'}
+                                                    </>
+                                                )}
+                                                {message.code_snippet.css && (
+                                                    <>
+                                                        <span className="font-bold text-green-300">CSS:</span>
+                                                        {'\n'}
+                                                        <code>{message.code_snippet.css}</code>
+                                                        {'\n\n'}
+                                                    </>
+                                                )}
+                                                {message.code_snippet.html && (
+                                                    <>
+                                                        <span className="font-bold text-green-300">HTML:</span>
+                                                        {'\n'}
+                                                        <code>{message.code_snippet.html}</code>
+                                                    </>
+                                                )}
+                                            </pre>
+                                            {/* --- Per-Message Render Button --- */}
+                                            <button
+                                              onClick={() => {
+                                                setCodeToDisplayInModal(message.code_snippet); // Set the specific code
+                                                setIsModalOpen(true); // Open the modal
+                                              }}
+                                              className="mt-2  py-1.5 px-1 rounded-lg font-bold transition-colors bg-orange-600 hover:bg-orange-700 text-white text-sm"
+                                            >
+                                              Render This Version
+                                            </button>
+                                            {/* ------------------------------------ */}
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -456,28 +489,28 @@ return (
                     ) : (
                         <p className="text-gray-600 text-center py-4">No chat history for this session yet.</p>
                     )}
+                    {/* Element to scroll to (for auto-scrolling) */}
                     <div ref={chatEndRef} />
                 </div>
             </div>
-            {/* --- NEW CHAT INPUT SECTION (within selectedSession block) --- */}
-            <form onSubmit={handleSendPrompt} className="mt-4 flex gap-2">
+            {/* Chat Input Section */}
+            <form onSubmit={handleSendPrompt} className="mt-4 flex gap-2 mt-auto">
               <input
                 type="text"
                 value={promptInput}
                 onChange={(e) => setPromptInput(e.target.value)}
                 placeholder="Type your prompt here..."
-                className="flex-grow p-2 border rounded-lg  focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-bold"
-                disabled={sessionDetailLoading} // Disable input if session operation is in progress
+                className="flex-grow p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-font-bold text-gray-800 h-10"
+                disabled={sessionDetailLoading}
               />
               <button
                 type="submit"
                 className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg"
-                disabled={sessionDetailLoading || !promptInput.trim()} // Disable if loading or input is empty
+                disabled={sessionDetailLoading || !promptInput.trim()}
               >
                 Send
               </button>
             </form>
-            {/* -------------------------------------------------------------- */}
           </div>
         ) : (
           <div className="flex-grow flex items-center justify-center text-gray-600 text-lg">
@@ -485,6 +518,14 @@ return (
           </div>
         )}
       </div>
+      <LivePreviewModal
+        show={isModalOpen} // Controls modal visibility
+        onClose={() => {
+          setIsModalOpen(false); // Close function
+          setCodeToDisplayInModal(null); // Clear code when modal closes
+        }}
+        codeToRender={codeToDisplayInModal} // Pass the specific code snippet to the modal
+      />
     </div>
   );
 }

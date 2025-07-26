@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Component Preview</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    /* Basic styling for the iframe's body to center the component */
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh; /* Make body fill viewport height */
+      display: flex;
+      justify-content: center; /* Center horizontally */
+      align-items: center;   /* Center vertically */
+      background-color: #f0f0f0; /* Light background for contrast */
+      font-family: Arial, sans-serif;
+      overflow: auto; /* Allow scrolling if content is larger than iframe */
+    }
+    /* Style the root div where the component will be mounted */
+    #root {
+      width: 100%; /* Take full width of parent */
+      height: 100%; /* Take full height, important for flex centering */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column; /* Allow vertical stacking if needed */
+    }
+  </style>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.0/babel.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root">
+    <p>Waiting for component code...</p>
+  </div>
+
+  <script type="text/babel" data-type="module" id="code-renderer-script">
+    // Get the root element where the React component will be mounted
+    const rootElement = document.getElementById('root');
+    let reactRoot = null; // To manage React 18's new root API
+
+    // Function to inject CSS into the iframe's head
+    function injectCSS(cssCode) {
+      // Remove any previously injected styles to prevent conflicts
+      const oldStyle = document.getElementById('dynamic-component-style');
+      if (oldStyle) {
+        oldStyle.remove();
+      }
+
+      // Create a new style element and add the CSS
+      const style = document.createElement('style');
+      style.id = 'dynamic-component-style';
+      style.textContent = cssCode;
+      document.head.appendChild(style);
+    }
+
+    function getComponentName(jsxCode) {
+        const funcMatch = jsxCode.match(/function\s+(\w+)\s*\(/);
+        if (funcMatch && funcMatch[1]) {
+            return funcMatch[1];
+        }
+        const classMatch = jsxCode.match(/class\s+(\w+)\s+extends/);
+        if (classMatch && classMatch[1]) {
+            return classMatch[1];
+        }
+        // Fallback if no named function/class found, or for arrow functions
+        return 'App'; // Default or a generic name if component is anonymous or named something else
+    }
+
+    // Function to create and render the React component
+    async function renderComponent(jsxCode, cssCode) {
+      if (!jsxCode || jsxCode.trim() === '') {
+        // If no JSX code, clear any previous component and show a message
+        if (reactRoot) {
+          reactRoot.unmount(); // Unmount previous component if any
+          reactRoot = null;
+        }
+        rootElement.innerHTML = '<p style="color:#666;">No component code to display. Generate one!</p>';
+        injectCSS(''); // Clear CSS too
+        return;
+      }
+
+      try {
+        // Step 1: Transpile JSX/TSX to plain JavaScript using Babel Standalone
+        // This is necessary because browsers don't natively understand JSX.
+        const cleanedJsxCode = jsxCode
+          .replace(/import .* from ['"].*['"];?/g, '')   // Strips JS/TS import statements
+          .replace(/import ['"].*\.css['"];?/g, '')     // Strips CSS import statements
+          .replace(/export (default )?/, '')            // Strips export default or export
+          .replace(/const navigate = useNavigate\(\);?/g, '') // <-- NEW: Strips useNavigate declaration
+          .replace(/navigate\(['"].*?['"]\);?/g, '')   // <-- NEW: Strips navigate() calls
+          .trim();
+
+        const componentName = getComponentName(cleanedJsxCode);
+
+        const transpiledCode = Babel.transform(cleanedJsxCode, {
+          presets: [
+            ['react', { runtime: 'classic' }], // <-- CRITICAL CHANGE: from 'automatic' to 'classic'
+            ['env', { modules: false }],
+          ],
+          plugins: [
+            ['proposal-decorators', { legacy: true }],
+            // 'class-properties' should stay removed unless you find specific generated code needs it
+          ]
+        }).code;
+
+        console.log('Babel Transpiled Code:', transpiledCode); 
+        // Step 2: Create a dynamic component from the transpiled code
+        // We use a function wrapper to ensure 'React' is available in the component's scope
+        // and to execute the string as code.
+        const dynamicComponentFactory = new Function(
+          'React',
+          'ReactDOM',
+          'useState',    // <-- Add useState
+          'useEffect',   // <-- Add useEffect
+          'useRef',      // <-- Add useRef
+          '// These are injected as arguments, making them available in scope\n' + // Add a comment for clarity
+          transpiledCode + '\nreturn ' + componentName + ';'
+        );
+
+        // Pass global React, ReactDOM, and specific hooks from window.React
+        const DynamicComponent = dynamicComponentFactory(
+          React,
+          ReactDOM,
+          React.useState,    // <-- Pass React.useState
+          React.useEffect,   // <-- Pass React.useEffect
+          React.useRef       // <-- Pass React.useRef
+        );
+
+        // Step 3: Inject CSS
+        injectCSS(cssCode);
+
+        // Step 4: Render the component
+        // Use React 18's createRoot API
+        if (!reactRoot) {
+          reactRoot = ReactDOM.createRoot(rootElement);
+        }
+        reactRoot.render(React.createElement(DynamicComponent));
+
+        console.log('Component rendered successfully!');
+      } catch (error) {
+        console.error('Error rendering component:', error);
+        // Clear any previous React component
+        if (reactRoot) {
+          reactRoot.unmount();
+          reactRoot = null;
+        }
+        // --- UPDATED ERROR DISPLAY IN IFRAME ---
+        rootElement.innerHTML = `
+          <div style="
+            color: red;
+            background-color: #ffe0e0;
+            border: 2px solid red;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            text-align: left;
+            max-height: 90vh; /* Constraint height */
+            overflow: auto; /* Make scrollable if error is long */
+          ">
+            <h3 style="margin-top:0; color:darkred;">Component Rendering Error:</h3>
+            <p style="font-weight: bold;">${error.message}</p>
+            <pre style="margin-top: 10px; border-top: 1px dashed #f00; padding-top: 10px;">${error.stack || 'No stack trace available.'}</pre>
+            <p style="margin-top: 20px; font-size: 0.9em; color:#a00;">Check browser console for more details.</p>
+          </div>
+        `;
+      }
+    }
+
+    // Listener for messages from the parent window (e.g., LivePreviewModal)
+    // The parent will send the JSX and CSS strings.
+    window.addEventListener('message', (event) => {
+      
+      if (event.data && event.data.type === 'RENDER_CODE') {
+        const { jsx, css } = event.data.code;
+        renderComponent(jsx, css);
+      }
+    });
+
+    console.log('Preview frame script loaded. Waiting for code...');
+  </script>
+</body>
+</html>
