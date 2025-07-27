@@ -59,16 +59,25 @@
     }
 
     function getComponentName(jsxCode) {
+        // Try to match 'function FunctionName('
         const funcMatch = jsxCode.match(/function\s+(\w+)\s*\(/);
         if (funcMatch && funcMatch[1]) {
             return funcMatch[1];
         }
+        // Try to match 'class ClassName extends'
         const classMatch = jsxCode.match(/class\s+(\w+)\s+extends/);
         if (classMatch && classMatch[1]) {
             return classMatch[1];
         }
-        // Fallback if no named function/class found, or for arrow functions
-        return 'App'; // Default or a generic name if component is anonymous or named something else
+        // --- NEW: Try to match 'const VariableName = (' or 'const VariableName = function (' or 'const VariableName = async (' ---
+        const constFuncMatch = jsxCode.match(/const\s+(\w+)\s*=\s*(async\s+)?(function|\(|<)/);
+        if (constFuncMatch && constFuncMatch[1]) {
+             return constFuncMatch[1];
+        }
+        // --- END NEW ---
+
+        // Fallback name if no named function/class found
+        return 'LivePreviewComponent'; // Default name for global assignment
     }
 
     // Function to create and render the React component

@@ -15,17 +15,67 @@ const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 
 router.post('/generate', auth, async (req, res) => {
-    const { prompt } = req.body;
+    const { prompt,image } = req.body;
     const userId = req.user;
 
-    if (!prompt) {
+    if (!prompt && !image) {
         return res.status(400).json({ msg: 'Prompt is required.' });
     }
 
-    console.log(`User ${userId} sending prompt to AI: "${prompt}"`);
+    console.log(`User ${userId} sending prompt to AI: "${prompt}" ${image ? '(with image)' : ''}`);
 
     try {
-        const result = await model.generateContent(prompt);
+
+        const systemInstruction = {
+            role: 'system',
+            parts: [
+                { text: `You are an expert React component generator. 
+                When the user asks you to "build", "create", "generate", or describes a UI element, 
+                you must provide the component's code.
+                Always include code in distinct markdown code blocks for JSx , CSS (generate this file seprately) if applicable.
+                
+                Format your code clearly:
+                - JSX/JavaScript: Use \`\`\`jsx ... \`\`\` or \`\`\`javascript ... \`\`\`
+                - CSS: Use \`\`\`css ... \`\`\`
+                - HTML: Use \`\`\`html ... \`\`\`
+                
+                Provide a brief explanation first, then the code blocks.
+                Do not include 'import React from "react";' in your JSX output, assume React is globally available.
+                Do not include 'import './App.css';' or similar CSS imports.
+                Do not use 'useNavigate' or other routing-specific hooks in your component code.
+                Generate self-contained components suitable for direct rendering.` }
+            ],
+        };
+
+        const contents=[];
+
+        if (prompt) {
+            contents.push({ role: 'user', parts: [{ text: prompt }] });
+        }
+
+        if (image) {
+            const [mimeTypePart, base64DataPart] = image.split(',');
+            const mimeType = mimeTypePart.match(/:(.*?);/)?.[1];
+
+            if (!mimeType || !base64DataPart) {
+                return res.status(400).json({ msg: 'Invalid image format. Must be Base64 data URL.' });
+            }
+
+            contents.push({
+                role: 'user',
+                parts: [{
+                    inlineData: {
+                        mimeType: mimeType,
+                        data: base64DataPart
+                    }
+                }]
+            });
+        }
+
+        const result = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            systemInstruction: systemInstruction,
+        });
         const response = await result.response;
         const text = response.text();
 
@@ -54,7 +104,7 @@ router.post('/generate', auth, async (req, res) => {
             if (htmlSnippet) generatedHtml = htmlSnippet.code;
 
             aiTextResponse = text.replace(codeBlockRegex, '').trim();
-            if (aiTextResponse.length === 0 && (generatedJsx || generatedCss || generatedHtml)) { // <-- UPDATED: Check for generatedHtml too
+            if (aiTextResponse.length === 0 && (generatedJsx || generatedCss || generatedHtml)) {
                 aiTextResponse = "Here's the component code you requested:";
             } else if (aiTextResponse.length === 0) {
                 aiTextResponse = "I processed your request, but found no code or specific text to return.";
