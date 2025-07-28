@@ -7,6 +7,27 @@ import { useRouter } from 'next/navigation'; // Import useRouter hook for redire
 import LivePreviewModal from '../../components/LivePreviewModal'; // Import the LivePreviewModal component
 import router from 'next/router';
 
+
+interface BaseChatMessage {
+  role: 'user' | 'ai';
+  content: string;
+}
+
+interface TextMessage extends BaseChatMessage {
+  imageUrl?: undefined;   // Explicitly undefined for text messages
+  code_snippet?: undefined; // Explicitly undefined for text messages
+}
+
+interface ImageMessage extends BaseChatMessage {
+  imageUrl: string; // Image message must have an imageUrl
+  code_snippet?: undefined; // Explicitly undefined for image messages
+}
+
+interface CodeMessage extends BaseChatMessage {
+  code_snippet: { jsx?: string; css?: string; html?: string }; // Code message must have a code_snippet
+  imageUrl?: undefined; // Explicitly undefined for code messages
+}
+
 interface Session {
   id: string;
   createdAt: string;
@@ -23,6 +44,8 @@ interface Session {
 
 // Main DashboardPage component
 export default function DashboardPage() {
+  
+  const router = useRouter(); 
 
   const NO_JSX_CODE = '// No JSX generated for this prompt.';
   const NO_CSS_CODE = '/* No CSS generated for this prompt. */';
@@ -203,13 +226,13 @@ export default function DashboardPage() {
   const handleSendPrompt = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!promptInput.trim() && !imageFile) || !selectedSession || !token) {
-      setError('Please select a session and enter a prompt.');
+      setError('Please select a session and enter a prompt or attach an image.');
       return;
     }
 
     let base64Image: string | null = null;
-    setSessionDetailLoading(true); // Show loading indicator
-    setError(null); 
+    setSessionDetailLoading(true);
+    setError(null);
 
     if (imageFile) {
       try {
@@ -217,13 +240,13 @@ export default function DashboardPage() {
           const reader = new FileReader();
           reader.onloadend = () => {
             if (reader.result) {
-              resolve(reader.result as string); // reader.result will be the Base64 string
+              resolve(reader.result as string);
             } else {
               reject(new Error("Failed to read image file."));
             }
           };
           reader.onerror = reject;
-          reader.readAsDataURL(imageFile); // Read the file as a data URL (Base64)
+          reader.readAsDataURL(imageFile);
         });
         console.log('Image converted to Base64.');
       } catch (err: any) {
@@ -234,12 +257,9 @@ export default function DashboardPage() {
       }
     }
 
-    const userMessage = {
-      role: 'user',
-      content: promptInput.trim() || 'Image attached.', // Content can be just "Image attached."
-      imageUrl: base64Image || undefined,
-      code_snippet: undefined,
-    };
+    const userMessage: TextMessage | ImageMessage = base64Image
+      ? { role: 'user', content: promptInput.trim() || 'Image attached.', imageUrl: base64Image }
+      : { role: 'user', content: promptInput.trim() };
     const currentSessionId = selectedSession.id;
 
     setSelectedSession((prevSession) => {
@@ -257,11 +277,9 @@ export default function DashboardPage() {
     setError(null);
 
     try {
-      const aiResponseThinking = {
+      const aiResponseThinking: TextMessage = {
         role: 'ai',
         content: 'Thinking...',
-        imageUrl: undefined,
-        code_snippet: undefined,
       };
 
       setSelectedSession((prevSession) => {
@@ -272,12 +290,27 @@ export default function DashboardPage() {
         };
       });
 
-      const requestBody: { prompt: string; image?: string } = {
+      // --- MODIFIED: Request body now includes chatHistory and currentGeneratedCode ---
+      const requestBody: {
+        prompt: string;
+        image?: string;
+        chatHistory?: (TextMessage | ImageMessage | CodeMessage)[]; // Full history from selectedSession
+        currentGeneratedCode?: { jsx?: string; css?: string; html?: string }; // Current component code from selectedSession
+      } = {
         prompt: userMessage.content,
       };
       if (userMessage.imageUrl) {
-        requestBody.image = userMessage.imageUrl; // Add Base64 image to request body
+        requestBody.image = userMessage.imageUrl;
       }
+      // Add existing chat history for context
+      if (selectedSession.chat_history && selectedSession.chat_history.length > 0) {
+        requestBody.chatHistory = selectedSession.chat_history;
+      }
+      // Add current generated code for context (what AI should modify)
+      if (selectedSession.generated_code && (selectedSession.generated_code.jsx || selectedSession.generated_code.css || selectedSession.generated_code.html)) {
+        requestBody.currentGeneratedCode = selectedSession.generated_code;
+      }
+      // --- END MODIFIED REQUEST BODY ---
 
       // --- ACTUAL AI BACKEND CALL ---
       const aiRes = await fetch('http://localhost:5000/api/generate', {
@@ -286,7 +319,7 @@ export default function DashboardPage() {
           'Content-Type': 'application/json',
           'x-auth-token': token,
         },
-        body: JSON.stringify({ prompt: userMessage.content }),
+        body: JSON.stringify(requestBody), // Send the comprehensive request body
       });
 
       const aiData = await aiRes.json();
@@ -296,15 +329,9 @@ export default function DashboardPage() {
         throw new Error(aiErrorMessage);
       }
 
-      const finalAiResponse: {
-        role: 'ai';
-        content: string;
-        imageUrl?: string; 
-        code_snippet?: { jsx?: string; css?: string; html?: string };
-      } = {
+      const finalAiResponse: CodeMessage = { // AI final response will be code (or text, but structured this way)
         role: 'ai',
         content: aiData.aiText,
-        imageUrl: undefined,
         code_snippet: aiData.generatedCode,
       };
 
@@ -319,10 +346,14 @@ export default function DashboardPage() {
         };
       });
 
-      const chatHistoryForSave = [...(selectedSession?.chat_history || []), userMessage, finalAiResponse];
+      // --- Auto-save the session after AI interaction ---
+      // Ensure finalChatHistoryForSave correctly captures all messages
+      const chatHistoryForSave = [...(selectedSession?.chat_history || [])];
+      chatHistoryForSave.push(userMessage, aiResponseThinking); // Add user and 'thinking' message for immediate save
+      const finalChatHistoryForSave = [...chatHistoryForSave.slice(0, chatHistoryForSave.length - 1), finalAiResponse]; // Replace thinking message
 
       const sessionToSave = {
-        chat_history: chatHistoryForSave,
+        chat_history: finalChatHistoryForSave, // Save the fully updated chat history
         generated_code: finalAiResponse.code_snippet,
         ui_editor_state: selectedSession?.ui_editor_state || {},
       };
@@ -343,7 +374,7 @@ export default function DashboardPage() {
       console.log('Session auto-saved successfully!');
 
     } catch (err: any) {
-      console.error("Error sending prompt or saving session:", err);
+      console.error("Error sending prompt to AI or saving session:", err);
       setError(err.message || 'Error processing prompt. Please try again.');
       if (err.message === 'No token, authorization denied' || err.message === 'Token is not valid') {
         logout();
