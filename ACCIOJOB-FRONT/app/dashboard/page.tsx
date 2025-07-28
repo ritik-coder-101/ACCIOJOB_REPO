@@ -82,7 +82,7 @@ export default function DashboardPage() {
         setError(null);
 
         try {
-          const res = await fetch('http://localhost:5000/api/sessions', {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/sessions`, {
             method: 'GET',
             headers: {
               'x-auth-token': token,
@@ -142,7 +142,7 @@ export default function DashboardPage() {
     setError(null);
 
     try {
-      const res = await fetch('http://localhost:5000/api/sessions/new', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/sessions/new`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -195,7 +195,7 @@ export default function DashboardPage() {
     setError(null);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/sessions/${sessionId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/sessions/${sessionId}`, {
         method: 'GET',
         headers: {
           'x-auth-token': token,
@@ -313,7 +313,7 @@ export default function DashboardPage() {
       // --- END MODIFIED REQUEST BODY ---
 
       // --- ACTUAL AI BACKEND CALL ---
-      const aiRes = await fetch('http://localhost:5000/api/generate', {
+      const aiRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -358,7 +358,7 @@ export default function DashboardPage() {
         ui_editor_state: selectedSession?.ui_editor_state || {},
       };
 
-      const saveRes = await fetch(`http://localhost:5000/api/sessions/${currentSessionId}/save`, {
+      const saveRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/sessions/${currentSessionId}/save`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
