@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link'; // Import Link for client-side navigation
 import { useAuth } from '../../context/AuthContext';
 
 export default function LoginPage() {
@@ -34,9 +33,11 @@ export default function LoginPage() {
             return;
         }
         login(data.token, data.user);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      if (err instanceof Error) {
         console.error("Login fetch error:", err);
         setError('Network error or server unavailable. Please check your connection.');
+      }
     } finally {
         setLoading(false);
     }
@@ -84,7 +85,7 @@ export default function LoginPage() {
 
         {/* Link to Signup page (will create this in a later step) */}
         <p className="text-center text-gray-600 text-sm mt-4">
-          Don't have an account? <a href="/signup" className="text-blue-500 hover:underline">Sign Up</a>
+          Don&apos;t have an account? <a href="/signup" className="text-blue-500 hover:underline">Sign Up</a>
         </p>
       </div>
     </div>

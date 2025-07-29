@@ -17,7 +17,6 @@ export default function LivePreviewModal({ show, onClose, codeToRender }: LivePr
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [copyFeedback, setCopyFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [activeTab, setActiveTab] = useState<'jsx' | 'css' | 'html'>('jsx');
-  const [activeModalView, setActiveModalView] = useState<'preview' | 'jsx' | 'css' | 'html'>('preview');
 
   // Define NO_CODE_PLACEHOLDERS here, at the top of the component
   const NO_JSX_CODE = '// No JSX generated for this prompt.';

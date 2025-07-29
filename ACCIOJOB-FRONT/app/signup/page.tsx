@@ -37,9 +37,11 @@ export default function SignupPage() {
 
       login(data.token, data.user);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      if (err instanceof Error) {
       console.error("Signup fetch error:", err);
       setError('Network error or server unavailable. Please check your connection.');
+      }
     } finally {
       setLoading(false);
     }

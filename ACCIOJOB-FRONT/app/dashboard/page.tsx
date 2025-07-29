@@ -1,11 +1,10 @@
 // app/dashboard/page.tsx
 'use client'; // This directive marks this as a Client Component in Next.js
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef , useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext'; // Import the useAuth hook for auth state
 import { useRouter } from 'next/navigation'; // Import useRouter hook for redirects
 import LivePreviewModal from '../../components/LivePreviewModal'; // Import the LivePreviewModal component
-import router from 'next/router';
 
 
 interface BaseChatMessage {
@@ -28,6 +27,7 @@ interface CodeMessage extends BaseChatMessage {
   imageUrl?: undefined; // Explicitly undefined for code messages
 }
 
+
 interface Session {
   id: string;
   createdAt: string;
@@ -39,8 +39,19 @@ interface Session {
     code_snippet?: { jsx?: string; css?: string; html?:string }; // Optional code snippet for AI responses
   }[];
   generated_code?: { jsx?: string; css?: string;html?:string }; // The full generated component code
-  ui_editor_state?: any; // State for interactive UI editor (e.g., properties of selected elements)
+  ui_editor_state?: Record<string, unknown>;
 }
+
+// interface ChatMessage {
+//   role?: 'user' | 'ai';
+//   content?: string;
+//   imageUrl?: string;
+//   code_snippet?: {
+//     jsx?: string;
+//     css?: string;
+//     html?: string;
+//   };
+// }
 
 // Main DashboardPage component
 export default function DashboardPage() {
@@ -75,6 +86,50 @@ export default function DashboardPage() {
     }
   }, [user, authLoading, router]);
 
+  const handleLoadSession = useCallback(async (sessionId: string) => {
+  if (!token) {
+    setError('Not authenticated. Please log in.');
+    return;
+  }
+
+  setSessionDetailLoading(true);
+  setError(null);
+
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/sessions/${sessionId}`, {
+      method: 'GET',
+      headers: {
+        'x-auth-token': token,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      const errorMessage = data.msg || 'Failed to load session.';
+      throw new Error(errorMessage);
+    }
+
+    setSelectedSession(data);
+
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      console.error("Error loading session:", err);
+      setError(err.message || 'Could not load session details.');
+      if (
+        err.message === 'No token, authorization denied' ||
+        err.message === 'Token is not valid' ||
+        err.message === 'Session not found or not authorized'
+      ) {
+        logout();
+      }
+    }
+  } finally {
+    setSessionDetailLoading(false);
+  }
+}, [token, logout]);
+
   useEffect(() => {
     if (user && token) {
       const fetchSessions = async () => {
@@ -104,20 +159,22 @@ export default function DashboardPage() {
               await handleLoadSession(data[0].id);
           }
 
-        } catch (err: any) {
-          console.error("Error fetching sessions:", err);
+        } catch (err: unknown) {
+          if (err instanceof Error) {
           setError(err.message || 'Could not load sessions.');
           if (err.message === 'No token, authorization denied' || err.message === 'Token is not valid') {
               logout();
           }
+        }
         } finally {
           setSessionsLoading(false);
         }
+
       };
 
       fetchSessions();
     }
-  }, [user, token, logout]); // Corrected dependencies: removed selectedSession from this effect
+  }, [user, token, logout, selectedSession,handleLoadSession]);
 
   // Effect 3: Auto-scroll to the bottom of the chat (runs when chat history length changes)
   useEffect(() => {
@@ -130,6 +187,7 @@ export default function DashboardPage() {
       return () => clearTimeout(timer);
     }
   }, [selectedSession?.chat_history?.length, sessionDetailLoading]);
+  
 
 
   const handleCreateNewSession = async () => {
@@ -174,50 +232,14 @@ export default function DashboardPage() {
       setSessions((prevSessions) => [newSessionData, ...prevSessions]);
       await handleLoadSession(newSessionData.id);
 
-    } catch (err: any) {
+    } catch (err : unknown) {
+      if (err instanceof Error) {
       console.error("Error creating new session:", err);
       setError(err.message || 'Could not create new session.');
       if (err.message === 'No token, authorization denied' || err.message === 'Token is not valid') {
         logout();
       }
-    } finally {
-      setSessionDetailLoading(false);
     }
-  };
-
-  const handleLoadSession = async (sessionId: string) => {
-    if (!token) {
-      setError('Not authenticated. Please log in.');
-      return;
-    }
-
-    setSessionDetailLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/sessions/${sessionId}`, {
-        method: 'GET',
-        headers: {
-          'x-auth-token': token,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        const errorMessage = data.msg || 'Failed to load session.';
-        throw new Error(errorMessage);
-      }
-
-      setSelectedSession(data);
-
-    } catch (err: any) {
-      console.error("Error loading session:", err);
-      setError(err.message || 'Could not load session details.');
-      if (err.message === 'No token, authorization denied' || err.message === 'Token is not valid' || err.message === 'Session not found or not authorized') {
-        logout();
-      }
     } finally {
       setSessionDetailLoading(false);
     }
@@ -249,11 +271,13 @@ export default function DashboardPage() {
           reader.readAsDataURL(imageFile);
         });
         console.log('Image converted to Base64.');
-      } catch (err: any) {
+      } catch (err: unknown) {
+        if (err instanceof Error) {
         console.error("Error reading image file:", err);
         setError("Failed to read image file. Please try again.");
         setSessionDetailLoading(false);
         return;
+        }
       }
     }
 
@@ -302,10 +326,7 @@ export default function DashboardPage() {
       if (userMessage.imageUrl) {
         requestBody.image = userMessage.imageUrl;
       }
-      // Add existing chat history for context
-      if (selectedSession.chat_history && selectedSession.chat_history.length > 0) {
-        requestBody.chatHistory = selectedSession.chat_history;
-      }
+      
       // Add current generated code for context (what AI should modify)
       if (selectedSession.generated_code && (selectedSession.generated_code.jsx || selectedSession.generated_code.css || selectedSession.generated_code.html)) {
         requestBody.currentGeneratedCode = selectedSession.generated_code;
@@ -373,12 +394,14 @@ export default function DashboardPage() {
       }
       console.log('Session auto-saved successfully!');
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      if (err instanceof Error) {
       console.error("Error sending prompt to AI or saving session:", err);
       setError(err.message || 'Error processing prompt. Please try again.');
       if (err.message === 'No token, authorization denied' || err.message === 'Token is not valid') {
         logout();
       }
+    }
     } finally {
       setSessionDetailLoading(false);
     }
@@ -487,7 +510,7 @@ const handleClearImage = () => {
                 {/* Enhanced chat display container with scrolling */}
                 <div className="space-y-3 w-full overflow-y-auto max-h-[calc(100vh-250px)] pr-2 bg-gray-200 rounded p-2">
                     {(selectedSession.chat_history||[])?.length > 0 ? (
-                        (selectedSession.chat_history || []).map((message: any, index: number) => (
+                        (selectedSession.chat_history || []).map((message, index) => (
                             <div
                                 key={index}
                                 className={`flex ${
@@ -515,7 +538,13 @@ const handleClearImage = () => {
                                             ) && (
                                                 <button
                                                   onClick={() => {
-                                                    setCodeToDisplayInModal(message.code_snippet);
+                                                    if (message.code_snippet) {
+                                                        setCodeToDisplayInModal({
+                                                          jsx: message.code_snippet.jsx ?? '',
+                                                          css: message.code_snippet.css ?? '',
+                                                          html: message.code_snippet.html ?? '',
+                                                      });
+                                                      }
                                                     setIsModalOpen(true);
                                                   }}
                                                   className="mt-2 py-1 px-2 rounded-lg font-bold transition-colors bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-300 focus:ring-opacity-75"
