@@ -14,6 +14,7 @@ const PORT=process.env.PORT || 5000;
 const allowedOrigins = [
   'http://localhost:3000', // frontend
   'http://localhost:5000', // backend
+  'https://acciojob-repo.vercel.app'
   
 ];
 
