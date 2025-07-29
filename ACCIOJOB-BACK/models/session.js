@@ -7,13 +7,11 @@ const sessionSchema=new mongoose.Schema({
         require : true
     },
     chatHistory: {
-        //this will store an array of chat message object.
         type : Array,
         default : []
     },
 
     generatedCode: {
-        //this will store the generate jsx/tsx and css.
         type : Object,
         default:{}
     },

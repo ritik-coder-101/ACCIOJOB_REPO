@@ -4,14 +4,14 @@ const UserSchema = new mongoose.Schema({
     email: {
         type: String,
         required: true,
-        unique: true, // Ensures no two users can have the same email
-        match: [/.+@.+\..+/, 'Please enter a valid email address'] // Basic email format validation
+        unique: true, 
+        match: [/.+@.+\..+/, 'Please enter a valid email address'] 
     },
-    passwordHash: { // Stores the securely hashed password
+    passwordHash: {
         type: String,
         required: true
     },
-    createdAt: { // Automatically records when the user was created
+    createdAt: {
         type: Date,
         default: Date.now
     }

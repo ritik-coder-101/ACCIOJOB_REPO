@@ -1,11 +1,10 @@
 // middleware/authMiddleware.js
-const jwt=require('jsonwebtoken'); //for varifying tokens.
+const jwt=require('jsonwebtoken');
 
 const auth =(req,res,next) => {
 
     const token=req.header('x-auth-token');
 
-    //check if token is present or not.
     if (!token) {
         return res.status(401).json({msg : 'No token, authorization denied'});
     }

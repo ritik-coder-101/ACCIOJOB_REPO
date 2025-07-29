@@ -5,7 +5,6 @@ const Session = require('../models/session');
 const mongoose=require('mongoose');
 
 const router = express.Router();
-//creating new session.
 router.post('/new',auth,async(req,res) => {
     const userId=req.user;
 
@@ -22,7 +21,7 @@ router.post('/new',auth,async(req,res) => {
 
         res.status(201).json({
             msg: 'New session created successfully',
-            sessionId: newSession._id, // Mongoose documents have an _id property
+            sessionId: newSession._id, 
             createdAt: newSession.createdAt,
             updatedAt: newSession.updatedAt
         });
@@ -32,7 +31,6 @@ router.post('/new',auth,async(req,res) => {
         res.status(500).send('Server error');
     }
 });
-//get all the session
 router.get('/',auth, async (req,res) => {
     const userId=req.user;
 
@@ -51,7 +49,6 @@ router.get('/',auth, async (req,res) => {
     }
 });
 
-//get the session by its id;
 router.get('/:id',auth, async(req,res) => {
     const userId =req.user;
     const sessionId=req.params.id;
@@ -63,13 +60,12 @@ router.get('/:id',auth, async(req,res) => {
 
         const session = await Session.findOne({ _id: sessionId, userId });
         if (!session) {
-            // If session is not found or doesn't belong to this user
             return res.status(404).json({ msg: 'Session not found or not authorized' });
         }
 
         res.json({
             id: session._id,
-            chat_history: session.chatHistory,    // Using frontend-friendly names
+            chat_history: session.chatHistory,   
             generated_code: session.generatedCode,
             ui_editor_state: session.uiEditorState,
             created_at: session.createdAt,
@@ -85,7 +81,6 @@ router.get('/:id',auth, async(req,res) => {
     }
 });
 
-//saving the specific session;
 router.put('/:id/save',auth, async(req,res) => {
     const userId=req.user;
     const sessionId=req.params.id;

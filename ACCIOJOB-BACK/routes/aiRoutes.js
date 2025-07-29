@@ -52,11 +52,10 @@ router.post('/generate', auth, async (req, res) => {
             ],
         };
 
-        const contents = []; // This array will hold the full conversational and multimodal context
+        const contents = [];
 
-        // 1. Add previous chat history (user/model turns)
         if (chatHistory && chatHistory.length > 0) {
-            chatHistory.forEach((msg) => { // Cast to any for flexibility with incoming types
+            chatHistory.forEach((msg) => {
                 const parts = [{ text: msg.content }];
                 if (msg.imageUrl) {
                     const [mimeTypePart, base64DataPart] = msg.imageUrl.split(',');
@@ -65,19 +64,17 @@ router.post('/generate', auth, async (req, res) => {
                         parts.push({ inlineData: { mimeType, data: base64DataPart } });
                     }
                 }
-                // Add code snippet to AI's previous turn if it exists
                 if (msg.role === 'ai' && msg.code_snippet && (msg.code_snippet.jsx || msg.code_snippet.css || msg.code_snippet.html)) {
                     let codeText = '';
                     if (msg.code_snippet.jsx) codeText += `\n\`\`\`jsx\n${msg.code_snippet.jsx}\n\`\`\``;
                     if (msg.code_snippet.css) codeText += `\n\`\`\`css\n${msg.code_snippet.css}\n\`\`\``;
                     if (msg.code_snippet.html) codeText += `\n\`\`\`html\n${msg.code_snippet.html}\n\`\`\``;
-                    if (codeText) parts.push({ text: `\n\nPrevious Code Generated:${codeText}` }); // Append code to AI's message
+                    if (codeText) parts.push({ text: `\n\nPrevious Code Generated:${codeText}` });
                 }
                 contents.push({ role: msg.role === 'user' ? 'user' : 'model', parts: parts });
             });
         }
 
-        // 2. Add current generated code as context for the AI (e.g., as a 'model' turn right before the new user prompt)
         if (currentGeneratedCode && (currentGeneratedCode.jsx || currentGeneratedCode.css || currentGeneratedCode.html)) {
             let codeText = '';
             if (currentGeneratedCode.jsx) codeText += `\n\`\`\`jsx\n${currentGeneratedCode.jsx}\n\`\`\``;
@@ -92,8 +89,7 @@ router.post('/generate', auth, async (req, res) => {
             }
         }
         
-        // 3. Add the current user prompt (and image)
-        const userPromptParts = [{ text: prompt }]; // <-- userPromptParts defined here
+        const userPromptParts = [{ text: prompt }]; 
         if (image) {
             const [mimeTypePart, base64DataPart] = image.split(',');
             const mimeType = mimeTypePart.match(/:(.*?);/)?.[1];
@@ -101,7 +97,7 @@ router.post('/generate', auth, async (req, res) => {
                 userPromptParts.push({ inlineData: { mimeType, data: base64DataPart } });
             }
         }
-        contents.push({ role: 'user', parts: userPromptParts }); // <-- userPromptParts used here
+        contents.push({ role: 'user', parts: userPromptParts }); 
 
         const result = await model.generateContent({
             contents: contents,

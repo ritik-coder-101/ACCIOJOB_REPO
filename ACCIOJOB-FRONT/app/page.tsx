@@ -1,23 +1,21 @@
 // app/page.tsx
-'use client'; // Mark as client component as it uses hooks for auth and routing
+'use client'; 
 
 import React, { useEffect } from 'react';
-import Link from 'next/link'; // For client-side navigation
-import { useAuth } from '../context/AuthContext'; // To check authentication status
-import { useRouter } from 'next/navigation'; // For programmatic redirect
+import Link from 'next/link'; 
+import { useAuth } from '../context/AuthContext'; 
+import { useRouter } from 'next/navigation'; 
 
 export default function LandingPage() {
-  const { user, loading: authLoading } = useAuth(); // Get user status from auth context
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  // Redirect authenticated users to dashboard
   useEffect(() => {
-    if (!authLoading && user) { // If not loading auth status, and user is logged in
-      router.replace('/dashboard'); // Redirect to dashboard
+    if (!authLoading && user) { 
+      router.replace('/dashboard'); 
     }
-  }, [user, authLoading, router]); // Dependency array
+  }, [user, authLoading, router]); 
 
-  // Show loading state while checking auth
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -26,9 +24,8 @@ export default function LandingPage() {
     );
   }
 
-  // Only render landing page if not authenticated and not loading
-  if (user) { // If user is logged in, useEffect will handle redirect. This prevents flicker.
-    return null; // Don't render the landing page if user is logged in
+  if (user) { 
+    return null; 
   }
 
   return (

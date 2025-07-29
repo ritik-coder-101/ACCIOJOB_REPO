@@ -4,18 +4,17 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function LoginPage() {
-  // State to hold email and password input values
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  const [error, setError] = useState<string | null>(null); // To display error messages
-  const [loading, setLoading] = useState<boolean>(false); // To show loading state during API call
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // Prevent default form submission behavior (page reload)
-    setError(null);    // Clear previous errors
-    setLoading(true);  // Set loading to true
+    e.preventDefault(); 
+    setError(null);   
+    setLoading(true); 
 
     try {
         const res=await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/login`,{
@@ -48,7 +47,6 @@ export default function LoginPage() {
       <div className="bg-white p-8 rounded shadow-md w-full max-w-md">
         <h1 className="text-2xl font-bold mb-6 text-center">Login</h1>
 
-        {/* Display error message if present */}
         {error && <p className="text-red-500 text-center mb-4">{error}</p>}
 
         <form onSubmit={handleSubmit}>
@@ -77,13 +75,12 @@ export default function LoginPage() {
           <button
             type="submit"
             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full"
-            disabled={loading} // Disable button when loading
+            disabled={loading}
           >
             {loading ? 'Logging In...' : 'Login'}
           </button>
         </form>
 
-        {/* Link to Signup page (will create this in a later step) */}
         <p className="text-center text-gray-600 text-sm mt-4">
           Don&apos;t have an account? <a href="/signup" className="text-blue-500 hover:underline">Sign Up</a>
         </p>

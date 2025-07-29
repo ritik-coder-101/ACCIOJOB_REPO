@@ -8,8 +8,8 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 
 interface LivePreviewModalProps {
-  show: boolean; // Controls whether the modal is visible
-  onClose: () => void; // Function to call when the modal needs to be closed
+  show: boolean; 
+  onClose: () => void; 
   codeToRender: { jsx?: string; css?: string; html?: string } | null;
 }
 
@@ -18,12 +18,9 @@ export default function LivePreviewModal({ show, onClose, codeToRender }: LivePr
   const [copyFeedback, setCopyFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [activeTab, setActiveTab] = useState<'jsx' | 'css' | 'html'>('jsx');
 
-  // Define NO_CODE_PLACEHOLDERS here, at the top of the component
   const NO_JSX_CODE = '// No JSX generated for this prompt.';
   const NO_CSS_CODE = '/* No CSS generated for this prompt. */';
-  const NO_HTML_CODE = ''; // Assuming HTML placeholder is empty string
-
-  // Debugging console log for the entire component's render flow
+  const NO_HTML_CODE = ''; 
 
   useEffect(() => {
     if (show && iframeRef.current && codeToRender) {
@@ -125,7 +122,6 @@ export default function LivePreviewModal({ show, onClose, codeToRender }: LivePr
     return null;
   }
 
-  // --- CRITICAL: hasActualCode check for top-level conditional rendering of tabs/buttons ---
   const hasActualCode = codeToRender && (
     (codeToRender.jsx && codeToRender.jsx.trim() !== NO_JSX_CODE) ||
     (codeToRender.css && codeToRender.css.trim() !== NO_CSS_CODE) ||
@@ -148,7 +144,6 @@ export default function LivePreviewModal({ show, onClose, codeToRender }: LivePr
           </button>
         </div>
 
-        {/* Top Section: Live Preview Iframe */}
         <div className="flex-grow p-4 bg-gray-100 flex items-center justify-center relative overflow-hidden">
           <iframe
             id="modal-component-preview-iframe"
@@ -160,16 +155,15 @@ export default function LivePreviewModal({ show, onClose, codeToRender }: LivePr
           ></iframe>
         </div>
 
-        {/* Bottom Section: Code Tabs and Copy/Download Buttons */}
         <div className="p-4 border-t border-gray-200 flex flex-col" style={{ flexBasis: '40%', minHeight: '200px' }}>
-            {hasActualCode ? ( // <-- This conditional controls if the tabs/code/buttons render
+            {hasActualCode ? (
                 <>
                     
-                    <div className="flex border-b border-gray-200 mb-3  h-12 w-full"> {/* Added bg-red-500, h-12, w-full */}
+                    <div className="flex border-b border-gray-200 mb-3  h-12 w-full">
                         {codeToRender?.jsx && codeToRender.jsx.trim() !== NO_JSX_CODE && (
                             <button
                                 onClick={() => setActiveTab('jsx')}
-                                className={`px-4 py-2 text-sm font-medium text-black ${ // Added bg-yellow-300, text-black
+                                className={`px-4 py-2 text-sm font-medium text-black ${ 
                                     activeTab === 'jsx' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600 hover:text-gray-800'
                                 }`}
                             >
@@ -179,7 +173,7 @@ export default function LivePreviewModal({ show, onClose, codeToRender }: LivePr
                         {codeToRender?.css && codeToRender.css.trim() !== NO_CSS_CODE && (
                             <button
                                 onClick={() => setActiveTab('css')}
-                                className={`px-4 py-2 text-sm font-medium  text-black ${ // Added bg-green-300, text-black
+                                className={`px-4 py-2 text-sm font-medium  text-black ${
                                     activeTab === 'css' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600 hover:text-gray-800'
                                 }`}
                             >
@@ -189,7 +183,7 @@ export default function LivePreviewModal({ show, onClose, codeToRender }: LivePr
                         {codeToRender?.html && codeToRender.html.trim() !== NO_HTML_CODE && (
                             <button
                                 onClick={() => setActiveTab('html')}
-                                className={`px-4 py-2 text-sm font-medium  text-black ${ // Added bg-blue-300, text-black
+                                className={`px-4 py-2 text-sm font-medium  text-black ${ 
                                     activeTab === 'html' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600 hover:text-gray-800'
                                 }`}
                             >
@@ -197,9 +191,7 @@ export default function LivePreviewModal({ show, onClose, codeToRender }: LivePr
                             </button>
                         )}
                     </div>
-                    {/* --- END AGGRESSIVE DEBUGGING STYLES --- */}
-
-                    {/* Code Display Area with Syntax Highlighting */}
+                    
                     <div className="flex-grow bg-gray-800 rounded-lg overflow-auto text-white p-3 text-sm" style={{ minHeight: '100px' }}>
                         <SyntaxHighlighter
                             style={vscDarkPlus}
@@ -219,7 +211,6 @@ export default function LivePreviewModal({ show, onClose, codeToRender }: LivePr
                     <p>No code available to display for this session.</p>
                 </div>
             )}
-            {/* Copy and Download Buttons */}
             <div className="mt-3 flex justify-end gap-2">
                 {codeToRender?.jsx && codeToRender.jsx.trim() !== NO_JSX_CODE && (
                     <button
@@ -257,7 +248,6 @@ export default function LivePreviewModal({ show, onClose, codeToRender }: LivePr
                 </button>
             </div>
         </div>
-        {/* Feedback Message Div (UNCHANGED) */}
         {copyFeedback && (
           <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 p-3 rounded-lg shadow-lg text-white font-semibold transition-all duration-300 transform ${
             copyFeedback.type === 'success' ? 'bg-green-500' : 'bg-red-500'

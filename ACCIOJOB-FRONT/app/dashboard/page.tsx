@@ -1,10 +1,9 @@
-// app/dashboard/page.tsx
-'use client'; // This directive marks this as a Client Component in Next.js
+'use client';
 
 import React, { useEffect, useState, useRef , useCallback } from 'react';
-import { useAuth } from '../../context/AuthContext'; // Import the useAuth hook for auth state
-import { useRouter } from 'next/navigation'; // Import useRouter hook for redirects
-import LivePreviewModal from '../../components/LivePreviewModal'; // Import the LivePreviewModal component
+import { useAuth } from '../../context/AuthContext'; 
+import { useRouter } from 'next/navigation';
+import LivePreviewModal from '../../components/LivePreviewModal';
 
 
 interface BaseChatMessage {
@@ -13,18 +12,18 @@ interface BaseChatMessage {
 }
 
 interface TextMessage extends BaseChatMessage {
-  imageUrl?: undefined;   // Explicitly undefined for text messages
-  code_snippet?: undefined; // Explicitly undefined for text messages
+  imageUrl?: undefined;   
+  code_snippet?: undefined; 
 }
 
 interface ImageMessage extends BaseChatMessage {
-  imageUrl: string; // Image message must have an imageUrl
-  code_snippet?: undefined; // Explicitly undefined for image messages
+  imageUrl: string; 
+  code_snippet?: undefined;
 }
 
 interface CodeMessage extends BaseChatMessage {
-  code_snippet: { jsx?: string; css?: string; html?: string }; // Code message must have a code_snippet
-  imageUrl?: undefined; // Explicitly undefined for code messages
+  code_snippet: { jsx?: string; css?: string; html?: string }; 
+  imageUrl?: undefined;
 }
 
 
@@ -32,28 +31,16 @@ interface Session {
   id: string;
   createdAt: string;
   updatedAt: string;
-  chat_history?: { // Array of chat messages
-    role?: 'user' | 'ai'; // Role of the message sender
+  chat_history?: { 
+    role?: 'user' | 'ai'; 
     content?: string;
-    imageUrl?:string;     // The text content of the message
-    code_snippet?: { jsx?: string; css?: string; html?:string }; // Optional code snippet for AI responses
+    imageUrl?:string;    
+    code_snippet?: { jsx?: string; css?: string; html?:string }; 
   }[];
-  generated_code?: { jsx?: string; css?: string;html?:string }; // The full generated component code
+  generated_code?: { jsx?: string; css?: string;html?:string }; 
   ui_editor_state?: Record<string, unknown>;
 }
 
-// interface ChatMessage {
-//   role?: 'user' | 'ai';
-//   content?: string;
-//   imageUrl?: string;
-//   code_snippet?: {
-//     jsx?: string;
-//     css?: string;
-//     html?: string;
-//   };
-// }
-
-// Main DashboardPage component
 export default function DashboardPage() {
   
   const router = useRouter(); 
@@ -68,9 +55,9 @@ export default function DashboardPage() {
 
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
 
-  const [sessionsLoading, setSessionsLoading] = useState<boolean>(true); // For loading the list of sessions
-  const [sessionDetailLoading, setSessionDetailLoading] = useState<boolean>(false); // For loading/creating a specific session
-  const [error, setError] = useState<string | null>(null); // For displaying error messages
+  const [sessionsLoading, setSessionsLoading] = useState<boolean>(true); 
+  const [sessionDetailLoading, setSessionDetailLoading] = useState<boolean>(false); 
+  const [error, setError] = useState<string | null>(null);
 
   const [promptInput, setPromptInput] = useState<string>('');
 
@@ -154,7 +141,6 @@ export default function DashboardPage() {
 
           setSessions(data);
 
-          // Optional: If there are sessions and none is selected, load the most recent one automatically
           if (data.length > 0 && selectedSession === null) {
               await handleLoadSession(data[0].id);
           }
@@ -176,12 +162,10 @@ export default function DashboardPage() {
     }
   }, [user, token, logout, selectedSession,handleLoadSession]);
 
-  // Effect 3: Auto-scroll to the bottom of the chat (runs when chat history length changes)
   useEffect(() => {
     if (chatEndRef.current) {
-      // Use a small setTimeout to ensure DOM has updated before scrolling
       const timer = setTimeout(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'instant' }); // Changed to 'instant' and 0ms timeout
+        chatEndRef.current?.scrollIntoView({ behavior: 'instant' });
       }, 0);
 
       return () => clearTimeout(timer);
@@ -314,12 +298,11 @@ export default function DashboardPage() {
         };
       });
 
-      // --- MODIFIED: Request body now includes chatHistory and currentGeneratedCode ---
       const requestBody: {
         prompt: string;
         image?: string;
-        chatHistory?: (TextMessage | ImageMessage | CodeMessage)[]; // Full history from selectedSession
-        currentGeneratedCode?: { jsx?: string; css?: string; html?: string }; // Current component code from selectedSession
+        chatHistory?: (TextMessage | ImageMessage | CodeMessage)[]; 
+        currentGeneratedCode?: { jsx?: string; css?: string; html?: string }; 
       } = {
         prompt: userMessage.content,
       };
@@ -327,20 +310,17 @@ export default function DashboardPage() {
         requestBody.image = userMessage.imageUrl;
       }
       
-      // Add current generated code for context (what AI should modify)
       if (selectedSession.generated_code && (selectedSession.generated_code.jsx || selectedSession.generated_code.css || selectedSession.generated_code.html)) {
         requestBody.currentGeneratedCode = selectedSession.generated_code;
       }
-      // --- END MODIFIED REQUEST BODY ---
 
-      // --- ACTUAL AI BACKEND CALL ---
       const aiRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-auth-token': token,
         },
-        body: JSON.stringify(requestBody), // Send the comprehensive request body
+        body: JSON.stringify(requestBody),
       });
 
       const aiData = await aiRes.json();
@@ -350,7 +330,7 @@ export default function DashboardPage() {
         throw new Error(aiErrorMessage);
       }
 
-      const finalAiResponse: CodeMessage = { // AI final response will be code (or text, but structured this way)
+      const finalAiResponse: CodeMessage = {
         role: 'ai',
         content: aiData.aiText,
         code_snippet: aiData.generatedCode,
@@ -367,14 +347,12 @@ export default function DashboardPage() {
         };
       });
 
-      // --- Auto-save the session after AI interaction ---
-      // Ensure finalChatHistoryForSave correctly captures all messages
       const chatHistoryForSave = [...(selectedSession?.chat_history || [])];
-      chatHistoryForSave.push(userMessage, aiResponseThinking); // Add user and 'thinking' message for immediate save
-      const finalChatHistoryForSave = [...chatHistoryForSave.slice(0, chatHistoryForSave.length - 1), finalAiResponse]; // Replace thinking message
+      chatHistoryForSave.push(userMessage, aiResponseThinking);
+      const finalChatHistoryForSave = [...chatHistoryForSave.slice(0, chatHistoryForSave.length - 1), finalAiResponse];
 
       const sessionToSave = {
-        chat_history: finalChatHistoryForSave, // Save the fully updated chat history
+        chat_history: finalChatHistoryForSave, 
         generated_code: finalAiResponse.code_snippet,
         ui_editor_state: selectedSession?.ui_editor_state || {},
       };
@@ -410,10 +388,9 @@ export default function DashboardPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   if (e.target.files && e.target.files[0]) {
     const file = e.target.files[0];
-    if (file.type.startsWith('image/')) { // Basic validation: ensure it's an image
+    if (file.type.startsWith('image/')) {
       setImageFile(file);
-      setError(null); // Clear any previous errors
-      // Optional: Give visual feedback that an image is selected
+      setError(null);
       console.log('Image selected:', file.name);
     } else {
       setImageFile(null);
@@ -425,7 +402,7 @@ export default function DashboardPage() {
 const handleClearImage = () => {
   setImageFile(null);
   const fileInput = document.getElementById('image-upload-input') as HTMLInputElement;
-  if (fileInput) fileInput.value = ''; // Clear file input field
+  if (fileInput) fileInput.value = '';
 };
 
   if (authLoading) {
@@ -448,32 +425,29 @@ const handleClearImage = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Left Panel: Sessions List & User Info */}
       <div className="w-1/4 p-4 bg-white border-r border-gray-200 shadow-md flex flex-col">
         <h2 className="text-xl font-bold mb-4 text-gray-800">Welcome, {user.email}!</h2>
 
-        {/* "Create New Session" button */}
         <button
-          onClick={handleCreateNewSession} // Connects to the function for creating new sessions
+          onClick={handleCreateNewSession}
           className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mb-4 w-full"
-          disabled={sessionDetailLoading} // Disable button if a session operation is in progress
+          disabled={sessionDetailLoading} 
         >
           {sessionDetailLoading && selectedSession === null ? 'Creating Session...' : 'New Chat'}
         </button>
 
         <h3 className="text-lg font-semibold mb-2 text-gray-700">Your Chat:</h3>
-        {error && <p className="text-red-500 mb-2">{error}</p>} {/* Display any session-related errors */}
+        {error && <p className="text-red-500 mb-2">{error}</p>} 
         {sessionsLoading ? (
           <p className="text-gray-500">Loading Chat...</p>
         ) : sessions.length === 0 ? (
           <p className="text-gray-500">No Chats yet. Create one to start!</p>
         ) : (
-          // List of existing sessions
           <ul className="overflow-y-auto flex-grow border rounded p-2 bg-gray-100">
             {sessions.map((session) => (
               <li
                 key={session.id}
-                onClick={() => handleLoadSession(session.id)} // Make list item clickable to load session details
+                onClick={() => handleLoadSession(session.id)}
                 className={`p-3 mb-2 rounded cursor-pointer ${
                   selectedSession?.id === session.id ? 'bg-blue-100 border-blue-500 border' : 'bg-gray-100 hover:bg-gray-200'
                 }`}
@@ -485,29 +459,23 @@ const handleClearImage = () => {
           </ul>
         )}
 
-        {/* Logout Button */}
         <button
-          onClick={logout} // Connects to the logout function from AuthContext
+          onClick={logout} 
           className="mt-auto bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded w-full"
         >
           Logout
         </button>
       </div>
 
-      {/* Right Panel: Main Playground / Session Details */}
       <div className="flex-grow p-4 bg-gray-100 flex flex-col">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">Component Playground</h2>
-        {/* Conditional rendering for loading state or no session selected */}
         {sessionDetailLoading && selectedSession !== null ? (
           <p className="text-center text-lg mt-10 text-gray-700">Generating Chat ...</p>
         ) : selectedSession ? (
-          // Display details if a session is selected
           <div className="bg-white p-6 rounded shadow-md flex-grow border border-blue-200 flex flex-col">
             <p className="text-gray-700 mb-2">Chat ID: <span className="font-mono text-sm">{selectedSession.id}</span></p>
 
-            {/* Displaying actual loaded data - Chat Transcript only for now */}
             <div className="flex-grow overflow-hidden flex flex-col">
-                {/* Enhanced chat display container with scrolling */}
                 <div className="space-y-3 w-full overflow-y-auto max-h-[calc(100vh-250px)] pr-2 bg-gray-200 rounded p-2">
                     {(selectedSession.chat_history||[])?.length > 0 ? (
                         (selectedSession.chat_history || []).map((message, index) => (
@@ -530,7 +498,6 @@ const handleClearImage = () => {
                                 >
                                     <strong className="block capitalize mb-1">{message.role}:</strong>
                                     <p className="text-sm">{message.content}</p>
-                                    {/* Display code snippet if available */}
                                     {message.code_snippet && (                                      
                                             (message.code_snippet.jsx && message.code_snippet.jsx !== NO_JSX_CODE && message.code_snippet.jsx !== '') ||
                                              (message.code_snippet.css && message.code_snippet.css !== NO_CSS_CODE && message.code_snippet.css !== '') ||
@@ -558,7 +525,6 @@ const handleClearImage = () => {
                     ) : (
                         <p className="text-gray-600 text-center py-4">No chat history for this session yet.</p>
                     )}
-                    {/* Element to scroll to (for auto-scrolling) */}
                     <div ref={chatEndRef} />
                 </div>
             </div>
@@ -566,19 +532,19 @@ const handleClearImage = () => {
             <form onSubmit={handleSendPrompt} className="mt-4 flex gap-2 mt-auto">
               <input
               type="file"
-              id="image-upload-input" // ID for label/button to click it
-              accept="image/*"        // Only accept image files
-              className="hidden"      // Hide the default file input
+              id="image-upload-input" 
+              accept="image/*"        
+              className="hidden"      
               onChange={handleImageChange}
             />
             <button
-              type="button" // Important: type="button" to prevent form submission
+              type="button"
               onClick={() => document.getElementById('image-upload-input')?.click()}
               className="p-2 border rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold focus:outline-none focus:ring-2 focus:ring-gray-400"
               title="Attach Image"
               disabled={sessionDetailLoading}
             >
-              + {/* Emoji for image icon, or use an SVG/Icon component */}
+              + 
             </button>
               <input
                 type="text"
@@ -616,12 +582,12 @@ const handleClearImage = () => {
         )}
       </div>
       <LivePreviewModal
-        show={isModalOpen} // Controls modal visibility
+        show={isModalOpen} 
         onClose={() => {
-          setIsModalOpen(false); // Close function
-          setCodeToDisplayInModal(null); // Clear code when modal closes
+          setIsModalOpen(false); 
+          setCodeToDisplayInModal(null);
         }}
-        codeToRender={codeToDisplayInModal} // Pass the specific code snippet to the modal
+        codeToRender={codeToDisplayInModal}
       />
     </div>
   );

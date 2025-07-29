@@ -6,10 +6,9 @@ const { body, validationResult } = require('express-validator');
 const User = require('../models/user');
 const router = express.Router();
 
-// Helper function to generate a JWT token
 const generateToken = (userId) => {
     return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRES_IN, // e.g., "1d" for 1 day
+        expiresIn: process.env.JWT_EXPIRES_IN, 
     });
 };
 //signup
@@ -27,22 +26,18 @@ router.post(
         const {email , password} = req.body;
 
         try {
-            //if email already exists.
             let user= await User.findOne({email});
             if (user) {
                 return res.status(400).json({ msg: 'User with this email already exists' });
             }
-            //hash the password.
             const Hash=await bcrypt.genSalt(10);
             const passwordHash=await bcrypt.hash(password,Hash);
             
-            //new user instance
             user = new User({
                 email,
                 passwordHash
             });
 
-            //save it to database
             await user.save();
 
             const token=generateToken(user.id);
@@ -86,7 +81,6 @@ router.post(
             if (!isMatch) {
                 return res.status(400).json({ msg: 'Invalid Credentials' });
             }
-            //if match generate token.
             const token = generateToken(user.id);
 
             res.json({

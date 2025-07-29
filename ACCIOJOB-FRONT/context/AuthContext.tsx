@@ -27,7 +27,6 @@ export const AuthProvider =({children} : {children:ReactNode}) => {
                 const storedUser=localStorage.getItem('user');
 
                 if (storedToken && storedUser) {
-                    // If a token and user data are found in localStorage, parse them and set the state.
                     const parsedUser = JSON.parse(storedUser);
                     setUser(parsedUser);
                     setToken(storedToken);
@@ -45,20 +44,20 @@ export const AuthProvider =({children} : {children:ReactNode}) => {
     },[]);
 
     const logout = () => {
-        localStorage.removeItem('token'); // Remove token from localStorage.
-        localStorage.removeItem('user');  // Remove user data from localStorage.
-        setToken(null);                   // Clear token from React component state.
-        setUser(null);                    // Clear user from React component state.
-        router.push('/login');            // Redirect the user back to the login page.
+        localStorage.removeItem('token'); 
+        localStorage.removeItem('user');  
+        setToken(null);                   
+        setUser(null);                    
+        router.push('/login');           
     };
 
 
     const login = (newToken: string, newUser: { id: string; email: string }) => {
-        localStorage.setItem('token', newToken);        // Persist token in localStorage.
-        localStorage.setItem('user', JSON.stringify(newUser)); // Persist user object (as string) in localStorage.
-        setToken(newToken);                             // Update React component state.
-        setUser(newUser);                               // Update React component state.
-        router.push('/dashboard');                      // Redirect the user to the dashboard page.
+        localStorage.setItem('token', newToken);       
+        localStorage.setItem('user', JSON.stringify(newUser));
+        setToken(newToken);                             
+        setUser(newUser);                               
+        router.push('/dashboard');                      
     };
 
     const contextValue = { user, token, login, logout, loading };

@@ -8,16 +8,15 @@ import { useAuth } from '../../context/AuthContext';
 export default function SignupPage() {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  const [error, setError] = useState<string | null>(null); // To display error messages
-  const [loading, setLoading] = useState<boolean>(false); // To show loading state during API call
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const { login } = useAuth();
 
-  // Function to handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // Prevent default form submission behavior
-    setError(null);    // Clear previous errors
-    setLoading(true);  // Set loading to true
+    e.preventDefault(); 
+    setError(null);  
+    setLoading(true); 
 
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/signup`, {
